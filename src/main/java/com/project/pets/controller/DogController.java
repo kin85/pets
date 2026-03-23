@@ -2,9 +2,11 @@ package com.project.pets.controller;
 
 import com.project.pets.domain.dto.DogViewDto;
 import com.project.pets.domain.dto.deworming.DewormingDto;
+import com.project.pets.domain.dto.deworming.DewormingOverviewDto;
 import com.project.pets.domain.dto.deworming.DewormingViewDto;
 import com.project.pets.domain.dto.vaccine.VaccineDogDto;
 import com.project.pets.domain.dto.vaccine.VaccineDogViewDto;
+import com.project.pets.domain.dto.vaccine.VaccineOverviewDto;
 import com.project.pets.service.DogService;
 import org.springframework.core.io.Resource;
 import org.springframework.http.CacheControl;
@@ -72,6 +74,11 @@ public class DogController {
         return dogService.getVaccineDog(id);
     }
 
+    @GetMapping("/{id}/vaccines/overview")
+    public VaccineOverviewDto getVaccineOverview(@PathVariable Long id) {
+        return dogService.getVaccineOverview(id);
+    }
+
     @PostMapping("/vaccine")
     public Long createVaccine(@RequestBody VaccineDogDto vaccineDogDto) {
         return dogService.save(vaccineDogDto);
@@ -80,6 +87,11 @@ public class DogController {
     @GetMapping("/{id}/deworming")
     public List<DewormingViewDto> getDeworming(@PathVariable Long id) {
         return dogService.getDeworming(id);
+    }
+
+    @GetMapping("/{id}/deworming/overview")
+    public DewormingOverviewDto getDewormingOverview(@PathVariable Long id) {
+        return dogService.getDewormingOverview(id);
     }
 
     @PostMapping("/deworming")

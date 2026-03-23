@@ -9,10 +9,16 @@ import com.project.pets.domain.Vaccine;
 import com.project.pets.domain.dto.DogDto;
 import com.project.pets.domain.dto.DogViewDto;
 import com.project.pets.domain.dto.deworming.DewormingDto;
+import com.project.pets.domain.dto.deworming.DewormingOverviewDto;
+import com.project.pets.domain.dto.deworming.DewormingOverviewItemDto;
 import com.project.pets.domain.dto.deworming.DewormingViewDto;
 import com.project.pets.domain.dto.vaccine.VaccineDogDto;
 import com.project.pets.domain.dto.vaccine.VaccineDogViewDto;
 import com.project.pets.domain.dto.vaccine.VaccineListDto;
+import com.project.pets.domain.dto.vaccine.VaccineOverviewDto;
+import com.project.pets.domain.dto.vaccine.VaccineSummaryItemDto;
+import com.project.pets.domain.enums.CoverageStatus;
+import com.project.pets.domain.enums.DewormerType;
 import com.project.pets.repository.DewormingRepository;
 import com.project.pets.repository.DogRepository;
 import com.project.pets.repository.DogVaccineRepository;
@@ -27,6 +33,8 @@ import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -37,10 +45,14 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -80,7 +92,12 @@ public class DogServiceImpl implements DogService {
         dogDto.setBirthDate(parseBirthDate(birthDate));
         dogDto.setMicrochip(microchip);
 
-        return saveForUser(dogDto, photoPath, username);
+        try {
+            return saveForUser(dogDto, photoPath, username);
+        } catch (RuntimeException ex) {
+            deleteStoredPhotoIfExists(photoPath);
+            throw ex;
+        }
     }
 
     @Override
@@ -174,6 +191,52 @@ public class DogServiceImpl implements DogService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public VaccineOverviewDto getVaccineOverview(Long dogId) {
+        Dog dog = getDogById(dogId);
+        List<Vaccine> allVaccines = vaccineRepository.findAll();
+        Map<Long, DogVaccine> latestByVaccineId = pickLatestApplications(dogVaccineRepository.findByDogId(dogId));
+        List<VaccineSummaryItemDto> currentVaccines = new ArrayList<>();
+        List<VaccineSummaryItemDto> upcomingVaccines = new ArrayList<>();
+        List<VaccineSummaryItemDto> pendingVaccines = new ArrayList<>();
+        Set<Long> coveredIds = new LinkedHashSet<>();
+
+        for (DogVaccine dogVaccine : latestByVaccineId.values()) {
+            LocalDate nextDueDate = dogVaccine.getAppliedDate().plusYears(1);
+            long daysUntilDue = ChronoUnit.DAYS.between(LocalDate.now(), nextDueDate);
+            VaccineSummaryItemDto item = mapToVaccineSummaryItemDto(dogVaccine, nextDueDate, daysUntilDue);
+
+            if (daysUntilDue >= 0 && daysUntilDue <= 30) {
+                upcomingVaccines.add(item);
+                coveredIds.add(dogVaccine.getVaccine().getId());
+                continue;
+            }
+
+            if (daysUntilDue > 30) {
+                currentVaccines.add(item);
+                coveredIds.add(dogVaccine.getVaccine().getId());
+            }
+        }
+
+        for (Vaccine vaccine : allVaccines) {
+            if (!coveredIds.contains(vaccine.getId())) {
+                pendingVaccines.add(mapToPendingVaccineSummaryItemDto(vaccine));
+            }
+        }
+
+        currentVaccines.sort(Comparator.comparing(VaccineSummaryItemDto::getName, String.CASE_INSENSITIVE_ORDER));
+        upcomingVaccines.sort(Comparator.comparing(VaccineSummaryItemDto::getDaysUntilDue));
+        pendingVaccines.sort(Comparator.comparing(VaccineSummaryItemDto::getName, String.CASE_INSENSITIVE_ORDER));
+
+        VaccineOverviewDto overview = new VaccineOverviewDto();
+        overview.setDogName(dog.getName());
+        overview.setCurrentVaccines(currentVaccines);
+        overview.setUpcomingVaccines(upcomingVaccines);
+        overview.setPendingVaccines(pendingVaccines);
+        return overview;
+    }
+
+    @Override
     public Long save(VaccineDogDto vaccineDogDto) {
         Dog dog = getDogById(vaccineDogDto.getDogId());
 
@@ -196,6 +259,18 @@ public class DogServiceImpl implements DogService {
                 .stream()
                 .map(this::mapToDewormingViewDto)
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public DewormingOverviewDto getDewormingOverview(Long dogId) {
+        getDogById(dogId);
+        List<Deworming> records = dewormingRepository.findByDogId(dogId);
+
+        DewormingOverviewDto overview = new DewormingOverviewDto();
+        overview.setInternalDeworming(buildDewormingOverviewItem(DewormerType.INTERNA, records));
+        overview.setExternalDeworming(buildDewormingOverviewItem(DewormerType.EXTERNA, records));
+        return overview;
     }
 
     @Override
@@ -223,24 +298,131 @@ public class DogServiceImpl implements DogService {
         return dto;
     }
 
+    private Map<Long, DogVaccine> pickLatestApplications(List<DogVaccine> dogVaccines) {
+        Map<Long, DogVaccine> latestByVaccineId = new HashMap<>();
+
+        for (DogVaccine dogVaccine : dogVaccines) {
+            DogVaccine current = latestByVaccineId.get(dogVaccine.getVaccine().getId());
+            if (current == null || dogVaccine.getAppliedDate().isAfter(current.getAppliedDate())) {
+                latestByVaccineId.put(dogVaccine.getVaccine().getId(), dogVaccine);
+            }
+        }
+
+        return latestByVaccineId;
+    }
+
+    private VaccineSummaryItemDto mapToVaccineSummaryItemDto(DogVaccine dogVaccine, LocalDate nextDueDate, long daysUntilDue) {
+        VaccineSummaryItemDto dto = new VaccineSummaryItemDto();
+        dto.setId(dogVaccine.getVaccine().getId());
+        dto.setName(dogVaccine.getVaccine().getName());
+        dto.setOptional(dogVaccine.getVaccine().isOptional());
+        dto.setLastApplicationDate(dogVaccine.getAppliedDate());
+        dto.setNextDueDate(nextDueDate);
+        dto.setDaysUntilDue(daysUntilDue);
+        return dto;
+    }
+
+    private VaccineSummaryItemDto mapToPendingVaccineSummaryItemDto(Vaccine vaccine) {
+        VaccineSummaryItemDto dto = new VaccineSummaryItemDto();
+        dto.setId(vaccine.getId());
+        dto.setName(vaccine.getName());
+        dto.setOptional(vaccine.isOptional());
+        return dto;
+    }
+
+    private DewormingOverviewItemDto buildDewormingOverviewItem(DewormerType type, List<Deworming> records) {
+        Deworming latest = pickLatestDeworming(type, records);
+        DewormingOverviewItemDto dto = new DewormingOverviewItemDto();
+        dto.setType(type);
+
+        if (latest == null) {
+            dto.setStatus(CoverageStatus.MISSING);
+            dto.setCanCreate(true);
+            return dto;
+        }
+
+        dto.setCurrent(mapToDewormingViewDto(latest));
+        if (latest.getExpirationDate() == null) {
+            dto.setStatus(CoverageStatus.ACTIVE);
+            dto.setCanCreate(false);
+            return dto;
+        }
+
+        long daysUntilExpiration = ChronoUnit.DAYS.between(LocalDate.now(), latest.getExpirationDate());
+        dto.setDaysUntilExpiration(daysUntilExpiration);
+
+        if (daysUntilExpiration < 0) {
+            dto.setStatus(CoverageStatus.EXPIRED);
+            dto.setCanCreate(true);
+            return dto;
+        }
+
+        if (daysUntilExpiration <= 30) {
+            dto.setStatus(CoverageStatus.WARNING);
+            dto.setCanCreate(true);
+            return dto;
+        }
+
+        dto.setStatus(CoverageStatus.ACTIVE);
+        dto.setCanCreate(false);
+        return dto;
+    }
+
+    private Deworming pickLatestDeworming(DewormerType type, List<Deworming> records) {
+        Deworming latest = null;
+
+        for (Deworming record : records) {
+            if (record.getType() != type) {
+                continue;
+            }
+
+            if (latest == null || toComparableDate(record).isAfter(toComparableDate(latest))) {
+                latest = record;
+            }
+        }
+
+        return latest;
+    }
+
+    private LocalDate toComparableDate(Deworming deworming) {
+        return deworming.getExpirationDate() != null ? deworming.getExpirationDate() : deworming.getAdministrationDate();
+    }
+
     @Override
     public void deleteById(Long id) {
-        dogRepository.deleteById(id);
+        Dog dog = getDogById(id);
+        String photoPath = dog.getPhotoPath();
+
+        dogRepository.delete(dog);
+        schedulePhotoDeletion(photoPath);
     }
 
     @Override
     public DogViewDto updateForUser(Long id, String name, String breed, String birthDate, String microchip,
                                     MultipartFile photo) {
         Dog dog = getDogById(id);
+        String previousPhotoPath = dog.getPhotoPath();
+        String newPhotoPath = null;
 
         if (name != null && !name.isBlank()) dog.setName(name);
         if (breed != null && !breed.isBlank()) dog.setBreed(breed);
         if (birthDate != null && !birthDate.isBlank()) dog.setBirthDate(parseBirthDate(birthDate));
         if (microchip != null && !microchip.isBlank()) dog.setMicrochip(microchip);
-        if (photo != null && !photo.isEmpty()) dog.setPhotoPath(storePhoto(photo));
+        if (photo != null && !photo.isEmpty()) {
+            newPhotoPath = storePhoto(photo);
+            dog.setPhotoPath(newPhotoPath);
+        }
 
-        dogRepository.save(dog);
-        return getViewById(id);
+        try {
+            dogRepository.save(dog);
+            if (newPhotoPath != null && previousPhotoPath != null && !previousPhotoPath.equals(newPhotoPath)) {
+                schedulePhotoDeletion(previousPhotoPath);
+            }
+            return getViewById(id);
+        } catch (RuntimeException ex) {
+            deleteStoredPhotoIfExists(newPhotoPath);
+            throw ex;
+        }
     }
 
     private Dog getDogById(Long id) {
@@ -329,5 +511,38 @@ public class DogServiceImpl implements DogService {
         }
 
         return candidates;
+    }
+
+    private void schedulePhotoDeletion(String storedPhotoPath) {
+        if (storedPhotoPath == null || storedPhotoPath.isBlank()) {
+            return;
+        }
+
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            deleteStoredPhotoIfExists(storedPhotoPath);
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                deleteStoredPhotoIfExists(storedPhotoPath);
+            }
+        });
+    }
+
+    private void deleteStoredPhotoIfExists(String storedPhotoPath) {
+        if (storedPhotoPath == null || storedPhotoPath.isBlank()) {
+            return;
+        }
+
+        for (Path candidate : buildPhotoPathCandidates(storedPhotoPath)) {
+            try {
+                Files.deleteIfExists(candidate);
+                break;
+            } catch (IOException ignored) {
+                // Si no se puede borrar el archivo, no bloqueamos la operacion principal.
+            }
+        }
     }
 }

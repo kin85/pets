@@ -124,7 +124,9 @@ public class VeterinaryVisitServiceImpl implements VeterinaryVisitService {
     private VeterinaryVisitViewDto mapToViewDto(VeterinaryVisit visit) {
         VeterinaryVisitViewDto dto = new VeterinaryVisitViewDto();
         dto.setId(visit.getId());
+        dto.setDogId(visit.getDog().getId());
         dto.setDogName(visit.getDog().getName());
+        dto.setVeterinaryId(visit.getVeterinary().getId());
         dto.setVeterinaryName(visit.getVeterinary().getName());
         dto.setVisitDate(visit.getVisitDate());
         dto.setReason(visit.getReason());
@@ -143,4 +145,3 @@ public class VeterinaryVisitServiceImpl implements VeterinaryVisitService {
         return map;
     }
 }
-

@@ -1,6 +1,5 @@
 package com.project.pets.domain.dto.veterinaryvisit;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 
 import java.time.LocalDate;
@@ -10,11 +9,14 @@ public class VeterinaryVisitViewDto {
 
     private Long id;
 
+    private Long dogId;
+
     private String dogName;
+
+    private Long veterinaryId;
 
     private String veterinaryName;
 
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd-MM-yyyy")
     private LocalDate visitDate;
 
     private String reason;
@@ -23,4 +25,3 @@ public class VeterinaryVisitViewDto {
 
     private String observations;
 }
-

@@ -7,4 +7,5 @@ import lombok.Data;
 public class DogHomeDto {
     private Long id;
     private String name;
+    private boolean hasPhoto;
 }

@@ -1,6 +1,5 @@
 package com.project.pets.domain.dto.veterinarytreatment;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import com.project.pets.domain.enums.AdministrationRoute;
 import lombok.Data;
 
@@ -15,10 +14,8 @@ public class VeterinaryTreatmentDto {
 
     private String description;
 
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd-MM-yyyy")
     private LocalDate startDate;
 
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd-MM-yyyy")
     private LocalDate endDate;
 
     private String dose;
@@ -29,4 +26,3 @@ public class VeterinaryTreatmentDto {
 
     private String instructions;
 }
-

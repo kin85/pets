@@ -2,7 +2,10 @@ package com.project.pets.controller;
 
 import com.project.pets.domain.dto.OwnerDto;
 import com.project.pets.domain.dto.OwnerHomeDto;
+import com.project.pets.domain.dto.OwnerProfileDto;
+import com.project.pets.domain.dto.OwnerProfileUpdateDto;
 import com.project.pets.service.OwnerService;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -29,6 +32,22 @@ public class OwnerController {
     @GetMapping("/{id}/home")
     public OwnerHomeDto getOwnerHome(@PathVariable Long id){
         return service.getOwnerHome(id);
+    }
+
+    @GetMapping("/me/home")
+    public OwnerHomeDto getMyHome(Authentication authentication) {
+        return service.getAuthenticatedOwnerHome(authentication);
+    }
+
+    @GetMapping("/me")
+    public OwnerProfileDto getMyProfile(Authentication authentication) {
+        return service.getAuthenticatedProfile(authentication);
+    }
+
+    @PutMapping("/me")
+    public OwnerProfileDto updateMyProfile(@RequestBody OwnerProfileUpdateDto profileUpdateDto,
+                                           Authentication authentication) {
+        return service.updateAuthenticatedProfile(profileUpdateDto, authentication);
     }
 
 }
