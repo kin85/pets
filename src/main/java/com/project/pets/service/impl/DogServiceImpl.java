@@ -26,6 +26,7 @@ import com.project.pets.repository.OwnerRepository;
 import com.project.pets.repository.UserRepository;
 import com.project.pets.repository.VaccineRepository;
 import com.project.pets.service.DogService;
+import com.project.pets.service.ImageKitStorageService;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpStatus;
@@ -40,6 +41,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -61,6 +63,7 @@ import java.util.UUID;
 public class DogServiceImpl implements DogService {
 
     private static final Path DOG_UPLOAD_DIR = Paths.get("uploads", "dogs");
+    private static final String IMAGEKIT_PREFIX = "imagekit|";
 
     private final DogRepository dogRepository;
     private final OwnerRepository ownerRepository;
@@ -68,16 +71,19 @@ public class DogServiceImpl implements DogService {
     private final DogVaccineRepository dogVaccineRepository;
     private final VaccineRepository vaccineRepository;
     private final DewormingRepository dewormingRepository;
+    private final ImageKitStorageService imageKitStorageService;
 
     public DogServiceImpl(DogRepository dogRepository, OwnerRepository ownerRepository,
                           UserRepository userRepository, DogVaccineRepository dogVaccineRepository,
-                          VaccineRepository vaccineRepository, DewormingRepository dewormingRepository) {
+                          VaccineRepository vaccineRepository, DewormingRepository dewormingRepository,
+                          ImageKitStorageService imageKitStorageService) {
         this.dogRepository = dogRepository;
         this.ownerRepository = ownerRepository;
         this.userRepository = userRepository;
         this.dogVaccineRepository = dogVaccineRepository;
         this.vaccineRepository = vaccineRepository;
         this.dewormingRepository = dewormingRepository;
+        this.imageKitStorageService = imageKitStorageService;
     }
 
     @Override
@@ -104,6 +110,14 @@ public class DogServiceImpl implements DogService {
     @Transactional(readOnly = true)
     public Resource getPhotoResource(Long id) {
         Dog dog = getDogById(id);
+        String externalPhotoUrl = extractImageKitUrl(dog.getPhotoPath());
+        if (externalPhotoUrl != null) {
+            try {
+                return new UrlResource(URI.create(externalPhotoUrl));
+            } catch (Exception e) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Photo not found", e);
+            }
+        }
         Path photoPath = resolvePhotoPath(dog);
 
         try {
@@ -121,6 +135,10 @@ public class DogServiceImpl implements DogService {
     @Transactional(readOnly = true)
     public MediaType getPhotoMediaType(Long id) {
         Dog dog = getDogById(id);
+        String externalPhotoUrl = extractImageKitUrl(dog.getPhotoPath());
+        if (externalPhotoUrl != null) {
+            return guessMediaTypeFromUrl(externalPhotoUrl);
+        }
         Path photoPath = resolvePhotoPath(dog);
 
         try {
@@ -159,11 +177,13 @@ public class DogServiceImpl implements DogService {
         Dog dog = getDogById(id);
 
         DogViewDto dto = new DogViewDto();
+        dto.setId(dog.getId());
         dto.setName(dog.getName());
         dto.setBreed(dog.getBreed());
         dto.setBirthDate(dog.getBirthDate());
         dto.setMicrochip(dog.getMicrochip());
         dto.setOwnerName(dog.getOwner().getName());
+        dto.setPhotoUrl(extractImageKitUrl(dog.getPhotoPath()));
         return dto;
     }
 
@@ -449,16 +469,10 @@ public class DogServiceImpl implements DogService {
         if (photo == null || photo.isEmpty()) {
             return null;
         }
-
-        try {
-            Files.createDirectories(DOG_UPLOAD_DIR);
-            String storedFileName = UUID.randomUUID() + "-" + sanitizeFilename(photo.getOriginalFilename());
-            Path targetPath = DOG_UPLOAD_DIR.resolve(storedFileName).normalize();
-            Files.copy(photo.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
-            return targetPath.toString();
-        } catch (IOException e) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Could not store photo", e);
-        }
+        String storedFileName = UUID.randomUUID() + "-" + sanitizeFilename(photo.getOriginalFilename());
+        ImageKitStorageService.StoredImage storedImage =
+                imageKitStorageService.uploadDogPhoto(photo, storedFileName);
+        return serializeImageKitPhoto(storedImage);
     }
 
     private String sanitizeFilename(String originalFilename) {
@@ -536,6 +550,12 @@ public class DogServiceImpl implements DogService {
             return;
         }
 
+        ImageKitPhotoReference remotePhoto = parseImageKitPhoto(storedPhotoPath);
+        if (remotePhoto != null) {
+            imageKitStorageService.deleteByFileId(remotePhoto.fileId());
+            return;
+        }
+
         for (Path candidate : buildPhotoPathCandidates(storedPhotoPath)) {
             try {
                 Files.deleteIfExists(candidate);
@@ -544,5 +564,44 @@ public class DogServiceImpl implements DogService {
                 // Si no se puede borrar el archivo, no bloqueamos la operacion principal.
             }
         }
+    }
+
+    private String serializeImageKitPhoto(ImageKitStorageService.StoredImage storedImage) {
+        return IMAGEKIT_PREFIX + storedImage.fileId() + "|" + storedImage.url();
+    }
+
+    private String extractImageKitUrl(String storedPhotoPath) {
+        ImageKitPhotoReference remotePhoto = parseImageKitPhoto(storedPhotoPath);
+        return remotePhoto != null ? remotePhoto.url() : null;
+    }
+
+    private ImageKitPhotoReference parseImageKitPhoto(String storedPhotoPath) {
+        if (storedPhotoPath == null || !storedPhotoPath.startsWith(IMAGEKIT_PREFIX)) {
+            return null;
+        }
+
+        String[] parts = storedPhotoPath.split("\\|", 3);
+        if (parts.length < 3 || parts[1].isBlank() || parts[2].isBlank()) {
+            return null;
+        }
+
+        return new ImageKitPhotoReference(parts[1], parts[2]);
+    }
+
+    private MediaType guessMediaTypeFromUrl(String url) {
+        String normalizedUrl = url.toLowerCase();
+        if (normalizedUrl.endsWith(".png")) {
+            return MediaType.IMAGE_PNG;
+        }
+        if (normalizedUrl.endsWith(".webp")) {
+            return MediaType.parseMediaType("image/webp");
+        }
+        if (normalizedUrl.endsWith(".gif")) {
+            return MediaType.IMAGE_GIF;
+        }
+        return MediaType.IMAGE_JPEG;
+    }
+
+    private record ImageKitPhotoReference(String fileId, String url) {
     }
 }

@@ -7,6 +7,8 @@ import java.time.LocalDate;
 @Data
 public class DogViewDto {
 
+    private Long id;
+
     private String name;
 
     private String breed;
@@ -16,5 +18,6 @@ public class DogViewDto {
     private String microchip;
 
     private String ownerName;
-}
 
+    private String photoUrl;
+}

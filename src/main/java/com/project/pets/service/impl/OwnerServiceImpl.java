@@ -163,7 +163,21 @@ public class OwnerServiceImpl implements OwnerService {
         dto.setName(dog.getName());
         dto.setId(dog.getId());
         dto.setHasPhoto(dog.getPhotoPath() != null && !dog.getPhotoPath().isBlank());
+        dto.setPhotoUrl(extractImageKitUrl(dog.getPhotoPath()));
         return dto;
+    }
+
+    private String extractImageKitUrl(String photoPath) {
+        if (photoPath == null || !photoPath.startsWith("imagekit|")) {
+            return null;
+        }
+
+        String[] parts = photoPath.split("\\|", 3);
+        if (parts.length < 3 || parts[2].isBlank()) {
+            return null;
+        }
+
+        return parts[2];
     }
 
     private String getAuthenticatedUsername(Authentication authentication) {
