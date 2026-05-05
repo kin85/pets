@@ -19,6 +19,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import com.project.pets.security.JwtService;
 
+import java.util.List;
+import java.util.Optional;
+
 @Service
 @Transactional
 public class AuthServiceImpl implements AuthService {
@@ -88,11 +91,13 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
 
-        Owner owner = ownerRepository.findByUserId(user.getId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Owner not found"));
+        Optional<Owner> owner = ownerRepository.findByUserId(user.getId());
 
         String token = jwtService.generateToken(springUser);
+        List<String> roles = springUser.getAuthorities().stream()
+                .map(authority -> authority.getAuthority())
+                .toList();
 
-        return new AuthController.LoginResponse(token, owner.getId());
+        return new AuthController.LoginResponse(token, owner.map(Owner::getId).orElse(null), roles);
     }
 }

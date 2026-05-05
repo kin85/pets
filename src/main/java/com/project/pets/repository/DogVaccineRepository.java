@@ -10,5 +10,6 @@ public interface DogVaccineRepository extends JpaRepository<DogVaccine, Long> {
     void deleteByDogId(Long dogId);
 
     List<DogVaccine> findByDogId(Long dogId);
-}
 
+    boolean existsByVaccineId(Long vaccineId);
+}

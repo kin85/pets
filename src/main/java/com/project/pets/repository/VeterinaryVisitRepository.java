@@ -8,5 +8,6 @@ import java.util.List;
 public interface VeterinaryVisitRepository extends JpaRepository<VeterinaryVisit, Long> {
 
     List<VeterinaryVisit> findByDogId(Long dogId);
-}
 
+    boolean existsByVeterinaryId(Long veterinaryId);
+}
