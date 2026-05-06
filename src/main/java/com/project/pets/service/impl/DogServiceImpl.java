@@ -13,8 +13,6 @@ import com.project.pets.domain.dto.deworming.DewormingOverviewDto;
 import com.project.pets.domain.dto.deworming.DewormingOverviewItemDto;
 import com.project.pets.domain.dto.deworming.DewormingViewDto;
 import com.project.pets.domain.dto.vaccine.VaccineDogDto;
-import com.project.pets.domain.dto.vaccine.VaccineDogViewDto;
-import com.project.pets.domain.dto.vaccine.VaccineListDto;
 import com.project.pets.domain.dto.vaccine.VaccineOverviewDto;
 import com.project.pets.domain.dto.vaccine.VaccineSummaryItemDto;
 import com.project.pets.domain.enums.CoverageStatus;
@@ -185,29 +183,6 @@ public class DogServiceImpl implements DogService {
         dto.setOwnerName(dog.getOwner().getName());
         dto.setPhotoUrl(extractImageKitUrl(dog.getPhotoPath()));
         return dto;
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public VaccineDogViewDto getVaccineDog(Long dogId) {
-        Dog dog = getDogById(dogId);
-
-        List<DogVaccine> dogVaccines = dogVaccineRepository.findByDogId(dogId);
-
-        List<VaccineListDto> vaccineListDtos = new ArrayList<>();
-        for (DogVaccine dv : dogVaccines) {
-            VaccineListDto dto = new VaccineListDto();
-            dto.setId(dv.getVaccine().getId());
-            dto.setName(dv.getVaccine().getName());
-            dto.setOptional(dv.getVaccine().isOptional());
-            dto.setLastApplicationDate(dv.getAppliedDate());
-            vaccineListDtos.add(dto);
-        }
-
-        VaccineDogViewDto result = new VaccineDogViewDto();
-        result.setName(dog.getName());
-        result.setVaccines(vaccineListDtos);
-        return result;
     }
 
     @Override

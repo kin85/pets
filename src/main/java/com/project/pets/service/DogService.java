@@ -5,7 +5,6 @@ import com.project.pets.domain.dto.deworming.DewormingDto;
 import com.project.pets.domain.dto.deworming.DewormingOverviewDto;
 import com.project.pets.domain.dto.deworming.DewormingViewDto;
 import com.project.pets.domain.dto.vaccine.VaccineDogDto;
-import com.project.pets.domain.dto.vaccine.VaccineDogViewDto;
 import com.project.pets.domain.dto.vaccine.VaccineOverviewDto;
 import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
@@ -29,8 +28,6 @@ public interface DogService {
 
     DogViewDto updateForUser(Long id, String name, String breed, String birthDate, String microchip,
             MultipartFile photo);
-
-    VaccineDogViewDto getVaccineDog(Long dogId);
 
     VaccineOverviewDto getVaccineOverview(Long dogId);
 

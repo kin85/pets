@@ -18,7 +18,6 @@ public class OwnerController {
         this.service = service;
     }
 
-    //@PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/{id}")
     public OwnerDto get(@PathVariable Long id) {
         return service.getById(id);

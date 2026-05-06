@@ -5,7 +5,6 @@ import com.project.pets.domain.dto.deworming.DewormingDto;
 import com.project.pets.domain.dto.deworming.DewormingOverviewDto;
 import com.project.pets.domain.dto.deworming.DewormingViewDto;
 import com.project.pets.domain.dto.vaccine.VaccineDogDto;
-import com.project.pets.domain.dto.vaccine.VaccineDogViewDto;
 import com.project.pets.domain.dto.vaccine.VaccineOverviewDto;
 import com.project.pets.service.DogService;
 import org.springframework.core.io.Resource;
@@ -67,11 +66,6 @@ public class DogController {
             @RequestParam(value = "microchip", required = false) String microchip,
             @RequestParam(value = "photo", required = false) MultipartFile photo) {
         return dogService.updateForUser(id, name, breed, birthDate, microchip, photo);
-    }
-
-    @GetMapping("/{id}/vaccines")
-    public VaccineDogViewDto gerVaccineDog(@PathVariable Long id){
-        return dogService.getVaccineDog(id);
     }
 
     @GetMapping("/{id}/vaccines/overview")
