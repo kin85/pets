@@ -29,6 +29,8 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 @Transactional(readOnly = true)
 public class OwnerServiceImpl implements OwnerService {
 
+    private static final int MIN_PASSWORD_LENGTH = 8;
+
     private final OwnerRepository repository;
 
     private final DogRepository dogRepository;
@@ -105,7 +107,9 @@ public class OwnerServiceImpl implements OwnerService {
         owner.setPhone(phone);
 
         if (profileUpdateDto.getPassword() != null && !profileUpdateDto.getPassword().isBlank()) {
-            user.setPassword(passwordEncoder.encode(profileUpdateDto.getPassword().trim()));
+            String normalizedPassword = profileUpdateDto.getPassword().trim();
+            validatePassword(normalizedPassword);
+            user.setPassword(passwordEncoder.encode(normalizedPassword));
         }
 
         userRepository.save(user);
@@ -200,5 +204,11 @@ public class OwnerServiceImpl implements OwnerService {
             throw new ResponseStatusException(BAD_REQUEST, message);
         }
         return value.trim();
+    }
+
+    private void validatePassword(String password) {
+        if (password == null || password.length() < MIN_PASSWORD_LENGTH) {
+            throw new ResponseStatusException(BAD_REQUEST, "La contraseña debe tener al menos 8 caracteres");
+        }
     }
 }

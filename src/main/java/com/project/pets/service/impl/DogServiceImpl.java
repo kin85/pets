@@ -272,6 +272,16 @@ public class DogServiceImpl implements DogService {
     }
 
     @Override
+    public void deleteVaccineApplication(Long dogId, Long applicationId) {
+        getDogById(dogId);
+
+        DogVaccine dogVaccine = dogVaccineRepository.findByIdAndDogId(applicationId, dogId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Vaccine application not found"));
+
+        dogVaccineRepository.delete(dogVaccine);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public List<DewormingViewDto> getDeworming(Long dogId) {
         getDogById(dogId);
@@ -334,6 +344,7 @@ public class DogServiceImpl implements DogService {
     private VaccineSummaryItemDto mapToVaccineSummaryItemDto(DogVaccine dogVaccine, LocalDate nextDueDate, long daysUntilDue) {
         VaccineSummaryItemDto dto = new VaccineSummaryItemDto();
         dto.setId(dogVaccine.getVaccine().getId());
+        dto.setApplicationId(dogVaccine.getId());
         dto.setName(dogVaccine.getVaccine().getName());
         dto.setOptional(dogVaccine.getVaccine().isOptional());
         dto.setLastApplicationDate(dogVaccine.getAppliedDate());

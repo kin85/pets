@@ -26,6 +26,8 @@ import java.util.Optional;
 @Transactional
 public class AuthServiceImpl implements AuthService {
 
+    private static final int MIN_PASSWORD_LENGTH = 8;
+
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
 
@@ -50,6 +52,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public Long save(UserRegisterDto userRegisterDto) {
+        validatePassword(userRegisterDto.getPassword());
 
         if (userRepository.findByUsername(userRegisterDto.getUsername()).isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Username already exists");
@@ -77,6 +80,13 @@ public class AuthServiceImpl implements AuthService {
         ownerRepository.save(owner);
 
         return user.getId();
+    }
+
+    private void validatePassword(String password) {
+        if (password == null || password.length() < MIN_PASSWORD_LENGTH) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "La contraseña debe tener al menos 8 caracteres");
+        }
     }
 
     @Override

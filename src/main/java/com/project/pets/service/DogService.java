@@ -36,6 +36,8 @@ public interface DogService {
 
     Long save(VaccineDogDto vaccineDogDto);
 
+    void deleteVaccineApplication(Long dogId, Long applicationId);
+
     List<DewormingViewDto> getDeworming(Long dogId);
 
     DewormingOverviewDto getDewormingOverview(Long dogId);

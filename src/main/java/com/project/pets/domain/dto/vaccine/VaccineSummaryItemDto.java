@@ -9,6 +9,8 @@ public class VaccineSummaryItemDto {
 
     private Long id;
 
+    private Long applicationId;
+
     private String name;
 
     private boolean optional;

@@ -84,6 +84,11 @@ public class DogController {
         return dogService.save(vaccineDogDto);
     }
 
+    @DeleteMapping("/{dogId}/vaccines/{applicationId}")
+    public void deleteVaccineApplication(@PathVariable Long dogId, @PathVariable Long applicationId) {
+        dogService.deleteVaccineApplication(dogId, applicationId);
+    }
+
     @GetMapping("/{id}/deworming")
     public List<DewormingViewDto> getDeworming(@PathVariable Long id) {
         return dogService.getDeworming(id);
