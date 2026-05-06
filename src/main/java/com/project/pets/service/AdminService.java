@@ -15,6 +15,8 @@ public interface AdminService {
 
     DataSet<Map<String, String>> findUsersByDatatables(DatatablesCriterias criterias);
 
+    void updateUserAdminRole(Long userId, boolean admin, Authentication authentication);
+
     void deleteUser(Long userId, Authentication authentication);
 
     DataSet<Map<String, String>> findDogsByDatatables(DatatablesCriterias criterias);

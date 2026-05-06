@@ -4,6 +4,7 @@ import com.project.pets.domain.dto.DataSet;
 import com.project.pets.domain.dto.DatatablesCriterias;
 import com.project.pets.domain.dto.DatatablesResponse;
 import com.project.pets.domain.dto.admin.AdminBootstrapDto;
+import com.project.pets.domain.dto.admin.AdminUserRoleUpdateDto;
 import com.project.pets.domain.dto.vaccine.VaccineViewDto;
 import com.project.pets.domain.dto.veterinary.VeterinaryViewDto;
 import com.project.pets.service.AdminService;
@@ -35,6 +36,14 @@ public class AdminController {
                  consumes = MediaType.APPLICATION_JSON_VALUE)
     public DatatablesResponse<Map<String, String>> findUsers(@RequestBody DatatablesCriterias criterias) {
         return buildDatatablesResponse(adminService.findUsersByDatatables(criterias), criterias);
+    }
+
+    @PutMapping("/users/{id}/admin-role")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void updateUserAdminRole(@PathVariable Long id,
+                                    @RequestBody AdminUserRoleUpdateDto dto,
+                                    Authentication authentication) {
+        adminService.updateUserAdminRole(id, dto.admin(), authentication);
     }
 
     @DeleteMapping("/users/{id}")

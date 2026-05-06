@@ -25,6 +25,7 @@ import java.util.*;
 public class AdminServiceImpl implements AdminService {
 
     private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
     private final OwnerRepository ownerRepository;
     private final DogRepository dogRepository;
     private final DogService dogService;
@@ -37,6 +38,7 @@ public class AdminServiceImpl implements AdminService {
     private final DogVaccineRepository dogVaccineRepository;
 
     public AdminServiceImpl(UserRepository userRepository,
+                            RoleRepository roleRepository,
                             OwnerRepository ownerRepository,
                             DogRepository dogRepository,
                             DogService dogService,
@@ -48,6 +50,7 @@ public class AdminServiceImpl implements AdminService {
                             DewormingRepository dewormingRepository,
                             DogVaccineRepository dogVaccineRepository) {
         this.userRepository = userRepository;
+        this.roleRepository = roleRepository;
         this.ownerRepository = ownerRepository;
         this.dogRepository = dogRepository;
         this.dogService = dogService;
@@ -98,6 +101,32 @@ public class AdminServiceImpl implements AdminService {
                 .map(this::mapUserRow)
                 .toList();
         return buildDataSet(rows, criterias, "username", true);
+    }
+
+    @Override
+    public void updateUserAdminRole(Long userId, boolean admin, Authentication authentication) {
+        User user = getUserById(userId);
+
+        if (authentication != null && user.getUsername().equals(authentication.getName())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "No puedes cambiar tu propio rol de administrador desde esta pantalla");
+        }
+
+        Role adminRole = roleRepository.findByName("ADMIN")
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.INTERNAL_SERVER_ERROR, "Role ADMIN not found"));
+
+        boolean alreadyAdmin = hasRole(user, "ADMIN");
+
+        if (admin && !alreadyAdmin) {
+            user.getRoles().add(adminRole);
+        }
+
+        if (!admin && alreadyAdmin) {
+            user.getRoles().removeIf(role -> "ADMIN".equalsIgnoreCase(role.getName()));
+        }
+
+        userRepository.save(user);
     }
 
     @Override
@@ -374,6 +403,7 @@ public class AdminServiceImpl implements AdminService {
         row.put("id", String.valueOf(user.getId()));
         row.put("username", safe(user.getUsername()));
         row.put("email", safe(user.getEmail()));
+        row.put("isAdmin", String.valueOf(hasRole(user, "ADMIN")));
         row.put("roles", user.getRoles().stream()
                 .map(Role::getName)
                 .sorted(String.CASE_INSENSITIVE_ORDER)
@@ -476,5 +506,10 @@ public class AdminServiceImpl implements AdminService {
 
     private String safe(String value) {
         return value == null ? "" : value;
+    }
+
+    private boolean hasRole(User user, String roleName) {
+        return user.getRoles().stream()
+                .anyMatch(role -> roleName.equalsIgnoreCase(role.getName()));
     }
 }
