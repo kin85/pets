@@ -13,6 +13,8 @@ import com.project.pets.repository.UserRepository;
 import com.project.pets.repository.UserTokenRepository;
 import com.project.pets.service.AccountMailService;
 import com.project.pets.service.AuthService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.mail.MailException;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -36,6 +38,8 @@ import java.util.Optional;
 @Service
 @Transactional
 public class AuthServiceImpl implements AuthService {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthServiceImpl.class);
 
     private static final int MIN_PASSWORD_LENGTH = 8;
     private static final int EMAIL_CONFIRMATION_EXPIRATION_HOURS = 24;
@@ -232,6 +236,7 @@ public class AuthServiceImpl implements AuthService {
         try {
             accountMailService.sendEmailConfirmation(user, token);
         } catch (MailException ex) {
+            log.error("Error enviando correo de confirmacion a {}", user.getEmail(), ex);
             throw new ResponseStatusException(
                     HttpStatus.SERVICE_UNAVAILABLE,
                     "No se pudo enviar el correo de confirmacion",
@@ -244,6 +249,7 @@ public class AuthServiceImpl implements AuthService {
         try {
             accountMailService.sendPasswordReset(user, token);
         } catch (MailException ex) {
+            log.error("Error enviando correo para restablecer contraseña a {}", user.getEmail(), ex);
             throw new ResponseStatusException(
                     HttpStatus.SERVICE_UNAVAILABLE,
                     "No se pudo enviar el correo para restablecer la contraseña",

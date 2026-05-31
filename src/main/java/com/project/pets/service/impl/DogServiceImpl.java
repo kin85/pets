@@ -190,7 +190,8 @@ public class DogServiceImpl implements DogService {
     public VaccineOverviewDto getVaccineOverview(Long dogId) {
         Dog dog = getDogById(dogId);
         List<Vaccine> allVaccines = vaccineRepository.findAll();
-        Map<Long, DogVaccine> latestByVaccineId = pickLatestApplications(dogVaccineRepository.findByDogId(dogId));
+        Map<Long, DogVaccine> latestByVaccineId = 
+            pickLatestApplications(dogVaccineRepository.findByDogId(dogId));
         List<VaccineSummaryItemDto> currentVaccines = new ArrayList<>();
         List<VaccineSummaryItemDto> upcomingVaccines = new ArrayList<>();
         List<VaccineSummaryItemDto> pendingVaccines = new ArrayList<>();
@@ -199,7 +200,8 @@ public class DogServiceImpl implements DogService {
         for (DogVaccine dogVaccine : latestByVaccineId.values()) {
             LocalDate nextDueDate = dogVaccine.getAppliedDate().plusYears(1);
             long daysUntilDue = ChronoUnit.DAYS.between(LocalDate.now(), nextDueDate);
-            VaccineSummaryItemDto item = mapToVaccineSummaryItemDto(dogVaccine, nextDueDate, daysUntilDue);
+            VaccineSummaryItemDto item = 
+                mapToVaccineSummaryItemDto(dogVaccine, nextDueDate, daysUntilDue);
 
             if (daysUntilDue >= 0 && daysUntilDue <= 30) {
                 upcomingVaccines.add(item);
@@ -236,7 +238,8 @@ public class DogServiceImpl implements DogService {
         Dog dog = getDogById(vaccineDogDto.getDogId());
 
         Vaccine vaccine = vaccineRepository.findById(vaccineDogDto.getVaccineId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Vaccine not found"));
+                .orElseThrow(() -> new ResponseStatusException
+                    (HttpStatus.NOT_FOUND, "Vaccine not found"));
 
         DogVaccine dogVaccine = new DogVaccine();
         dogVaccine.setDog(dog);
@@ -251,7 +254,8 @@ public class DogServiceImpl implements DogService {
         getDogById(dogId);
 
         DogVaccine dogVaccine = dogVaccineRepository.findByIdAndDogId(applicationId, dogId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Vaccine application not found"));
+                .orElseThrow(() -> new ResponseStatusException
+                    (HttpStatus.NOT_FOUND, "Vaccine application not found"));
 
         dogVaccineRepository.delete(dogVaccine);
     }

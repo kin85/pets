@@ -11,7 +11,8 @@ public class Dog {
 
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "hib_seq")
-    @SequenceGenerator(name = "hib_seq", sequenceName = "app.hibernate_sequence", allocationSize = 1)
+    @SequenceGenerator(name = "hib_seq", 
+        sequenceName = "app.hibernate_sequence", allocationSize = 1)
     @Column(name = "id")
     private Long id;
 
