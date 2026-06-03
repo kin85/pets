@@ -39,8 +39,6 @@ public interface AdminService {
 
     void deleteVaccine(Long id);
 
-    DataSet<Map<String, String>> findNotesByDatatables(DatatablesCriterias criterias);
-
     DataSet<Map<String, String>> findVisitsByDatatables(DatatablesCriterias criterias);
 
     DataSet<Map<String, String>> findTreatmentsByDatatables(DatatablesCriterias criterias);

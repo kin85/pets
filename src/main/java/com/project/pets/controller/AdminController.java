@@ -112,12 +112,6 @@ public class AdminController {
         adminService.deleteVaccine(id);
     }
 
-    @PostMapping(value = "/notes/datatables", produces = MediaType.APPLICATION_JSON_VALUE,
-                 consumes = MediaType.APPLICATION_JSON_VALUE)
-    public DatatablesResponse<Map<String, String>> findNotes(@RequestBody DatatablesCriterias criterias) {
-        return buildDatatablesResponse(adminService.findNotesByDatatables(criterias), criterias);
-    }
-
     @PostMapping(value = "/visits/datatables", produces = MediaType.APPLICATION_JSON_VALUE,
                  consumes = MediaType.APPLICATION_JSON_VALUE)
     public DatatablesResponse<Map<String, String>> findVisits(@RequestBody DatatablesCriterias criterias) {

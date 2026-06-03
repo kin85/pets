@@ -31,7 +31,6 @@ public class AdminServiceImpl implements AdminService {
     private final DogService dogService;
     private final VeterinaryRepository veterinaryRepository;
     private final VaccineRepository vaccineRepository;
-    private final NoteRepository noteRepository;
     private final VeterinaryVisitRepository veterinaryVisitRepository;
     private final VeterinaryTreatmentRepository veterinaryTreatmentRepository;
     private final DewormingRepository dewormingRepository;
@@ -44,7 +43,6 @@ public class AdminServiceImpl implements AdminService {
                             DogService dogService,
                             VeterinaryRepository veterinaryRepository,
                             VaccineRepository vaccineRepository,
-                            NoteRepository noteRepository,
                             VeterinaryVisitRepository veterinaryVisitRepository,
                             VeterinaryTreatmentRepository veterinaryTreatmentRepository,
                             DewormingRepository dewormingRepository,
@@ -56,7 +54,6 @@ public class AdminServiceImpl implements AdminService {
         this.dogService = dogService;
         this.veterinaryRepository = veterinaryRepository;
         this.vaccineRepository = vaccineRepository;
-        this.noteRepository = noteRepository;
         this.veterinaryVisitRepository = veterinaryVisitRepository;
         this.veterinaryTreatmentRepository = veterinaryTreatmentRepository;
         this.dewormingRepository = dewormingRepository;
@@ -235,15 +232,6 @@ public class AdminServiceImpl implements AdminService {
                     "No se puede borrar la vacuna porque tiene aplicaciones asociadas");
         }
         vaccineRepository.deleteById(id);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public DataSet<Map<String, String>> findNotesByDatatables(DatatablesCriterias criterias) {
-        List<Map<String, String>> rows = noteRepository.findAll().stream()
-                .map(this::mapNoteRow)
-                .toList();
-        return buildDataSet(rows, criterias, "noteDate", false);
     }
 
     @Override
@@ -443,17 +431,6 @@ public class AdminServiceImpl implements AdminService {
         row.put("id", String.valueOf(vaccine.getId()));
         row.put("name", safe(vaccine.getName()));
         row.put("optional", vaccine.isOptional() ? "Si" : "No");
-        return row;
-    }
-
-    private Map<String, String> mapNoteRow(Note note) {
-        Map<String, String> row = new LinkedHashMap<>();
-        row.put("id", String.valueOf(note.getId()));
-        row.put("dogId", String.valueOf(note.getDog().getId()));
-        row.put("noteDate", note.getNoteDate() != null ? note.getNoteDate().toString() : "");
-        row.put("subject", safe(note.getSubject()));
-        row.put("content", safe(note.getContent()));
-        row.put("dogName", safe(note.getDog().getName()));
         return row;
     }
 
